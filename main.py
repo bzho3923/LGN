@@ -213,13 +213,17 @@ def test(loader,device):
     )  # Derive ratio of correct predictions.
 
 
-def single_mutant_test(model,loader,protein_names,device):
+def single_mutant_test(model,loader,protein_names,device,use_half=False):
+    #While-training, we should use half to get the best model, not all.
+
     model.eval()
     correct = 0
     softmax = nn.Softmax()
     protein_num = len(protein_names)
     score = [torch.tensor([]).to(device) for _ in range(protein_num)]
     probab = [torch.tensor([]).to(device) for _ in range(protein_num)]
+
+
     with torch.no_grad():
         for data in loader:  # Iterate in batches over the training/test dataset.
             graph_data=data
@@ -247,12 +251,16 @@ def single_mutant_test(model,loader,protein_names,device):
                             count += 1
         
     spearman_coeef = np.zeros(protein_num)
+
     for i in range(protein_num):
         if len(score[i].cpu().numpy()) == 0:
             continue
-        spearvalue = spearmanr(
-            score[i].cpu().numpy(),probab[i].cpu().numpy()
-        ).correlation
+        if(use_half==True):#Training
+            spearvalue = spearmanr(score[i][0:len(score[i])//2].cpu().numpy(),
+                                   probab[i][0:len(probab[i])//2].cpu().numpy()).correlation
+        else:
+            spearvalue = spearmanr(score[i].cpu().numpy(),
+                                   probab[i].cpu().numpy()).correlation
         if spearvalue is nan:
             pass
         else:
@@ -274,7 +282,7 @@ def single_mutant_test(model,loader,protein_names,device):
 
 
 
-def multi_mutant_test(model,loader,protein_names,device):
+def multi_mutant_test(model,loader,protein_names,device,use_half=False):
     model.eval()
     softmax = nn.Softmax()
     protein_num = len(protein_names)
@@ -318,9 +326,16 @@ def multi_mutant_test(model,loader,protein_names,device):
                 ),
                 1,
             )
-            df_score = pd.DataFrame(
-                df_score.numpy(), columns=["true_score", "pred_score", "mutat_pt_num"]
-            )
+            if(use_half==True):# While-training.
+                df_score = pd.DataFrame(
+                    df_score[0:len(df_score)//2].numpy(),columns=["true_score", "pred_score", "mutat_pt_num"]
+                )
+
+            else:
+                df_score = pd.DataFrame(
+                    df_score.numpy(), columns=["true_score", "pred_score", "mutat_pt_num"]
+                )
+
 
             # calculate spearman corr
             if len(df_score["true_score"]) == 0:
@@ -497,6 +512,7 @@ if __name__ == "__main__":
                                                                          shuffle=True))
     train_loader,val_loader,test_loader=map(cath_dataloader,(train_dataset,val_dataset,test_dataset))
     protein_names=mm_dataset.protein_names
+
     single_mutant_loader=pygDataLoader(sm_dataset, batch_size=1, shuffle=False)
     multi_mutant_loader=pygDataLoader(mm_dataset, batch_size=1, shuffle=False)
 
@@ -545,16 +561,21 @@ if __name__ == "__main__":
             state_dict = model.module.state_dict()
         else:
             state_dict = model.state_dict()
-        
+
+        ##If training, use half of dataset to choose model.
         single_info, single_mean, single_weight = single_mutant_test(
-            model, single_mutant_loader, protein_names, device
+            model, single_mutant_loader, protein_names, device, use_half=True
         )
         multi_info, multi_mean, multi_weight = multi_mutant_test(
-            model, multi_mutant_loader, protein_names, device
+            model, multi_mutant_loader, protein_names, device, use_half=True
         )
+
+
+
         single_mean_list.append(single_mean)
         multip_mean_list.append(multi_mean)
         # single correlation achieve best performance
+
         if single_mean > best_single:
             best_single = single_mean
             torch.save(
