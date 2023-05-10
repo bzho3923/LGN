@@ -58,8 +58,10 @@ def train(opt,epoch,loader):
                 y4 = torch.cat([data_.y4 for data_ in data_list])
                 y5 = torch.cat([data_.y5 for data_ in data_list])
                 y6 = torch.cat([data_.y6 for data_ in data_list])
+                y7 = torch.cat([data_.y7 for data_ in data_list])
+                y8 = torch.cat([data_.y8 for data_ in data_list])
             if opt["coordinate"]:
-                y7 = torch.cat([data_.y7 for data_ in data_list]).to(device)
+                y9 = torch.cat([data_.y9 for data_ in data_list]).to(device)
         else:
             y = data_list.y
             if opt["sasa"]:
@@ -71,8 +73,10 @@ def train(opt,epoch,loader):
                 y4 = data_list.y4
                 y5 = data_list.y5
                 y6 = data_list.y6
-            if opt["coordinate"]:
                 y7 = data_list.y7
+                y8 = data_list.y8
+            if opt["coordinate"]:
+                y9 = data_list.y9
         batch_graph=Batch.from_data_list(data_list).to(device)
         out=model(batch_graph).to(device)
         
@@ -95,15 +99,17 @@ def train(opt,epoch,loader):
             loss5 = criterion2(out[:, dimention + 1], y4.to(out.device))
             loss6 = criterion2(out[:, dimention + 2], y5.to(out.device))
             loss7 = criterion2(out[:, dimention + 3], y6.to(out.device))
+            loss8 = criterion2(out[:, dimention + 4], y7.to(out.device))
+            loss9 = criterion2(out[:, dimention + 5], y8.to(out.device))
             train_loss_list[4] += (
-                loss4.item()+loss5.item()+loss6.item()+loss7.item()
+                loss4.item()+loss5.item()+loss6.item()+loss7.item()+loss8.item()+loss9.item()
             )
-            loss = loss + lambda2 * (loss4 + loss5 + loss6 + loss7)
-            dimention = dimention + 4
+            loss = loss + lambda2 * (loss4 + loss5 + loss6 + loss7 + loss8 + loss9)
+            dimention = dimention + 6
         if opt["coordinate"]:
-            loss8 = criterion2(out[:, dimention : dimention + 3], y7.to(out.device))
-            train_loss_list[5] += loss8.item()
-            loss = loss + lambda1 * (loss8)
+            loss10 = criterion2(out[:, dimention : dimention + 3], y9.to(out.device))
+            train_loss_list[5] += loss10.item()
+            loss = loss + lambda1 * (loss10)
             dimention = dimention + 3
         loss.backward()  # Derive gradients.
         train_loss += loss.item()
@@ -148,8 +154,10 @@ def test(loader,device):
                     y4 = torch.cat([data_.y4 for data_ in data_list]).to(device)
                     y5 = torch.cat([data_.y5 for data_ in data_list]).to(device)
                     y6 = torch.cat([data_.y6 for data_ in data_list]).to(device)
-                if opt["coordinate"]:
                     y7 = torch.cat([data_.y7 for data_ in data_list]).to(device)
+                    y8 = torch.cat([data_.y8 for data_ in data_list]).to(device)
+                if opt["coordinate"]:
+                    y9 = torch.cat([data_.y9 for data_ in data_list]).to(device)
             else:
                 data_list = data_list.to(device)
                 y = data_list.y.to(device)
@@ -163,8 +171,10 @@ def test(loader,device):
                     y4 = data_list.y4.to(device)
                     y5 = data_list.y5.to(device)
                     y6 = data_list.y6.to(device)
-                if opt["coordinate"]:
                     y7 = data_list.y7.to(device)
+                    y8 = data_list.y8.to(device)
+                if opt["coordinate"]:
+                    y9 = data_list.y7.to(device)
             batch_graph = Batch.from_data_list(data_list).to(device)
             out = model(batch_graph).to(device)
                 
@@ -187,15 +197,18 @@ def test(loader,device):
                 loss5 = criterion2(out[:, dimention + 1], y4)
                 loss6 = criterion2(out[:, dimention + 2], y5)
                 loss7 = criterion2(out[:, dimention + 3], y6)
+                loss8 = criterion2(out[:, dimention + 4], y7)
+                loss9 = criterion2(out[:, dimention + 5], y8)
+
                 train_loss_list[4] += (
-                    loss4.item() + loss5.item() + loss6.item() + loss7.item()
+                    loss4.item() + loss5.item() + loss6.item() + loss7.item() + loss8.item() + loss9.item()
                 )
-                loss = loss + opt["lambda2"] * (loss4 + loss5 + loss6 + loss7)
-                dimention = dimention + 4
+                loss = loss + opt["lambda2"] * (loss4 + loss5 + loss6 + loss7 +loss8 + loss9)
+                dimention = dimention + 6
             if opt["coordinate"]:
-                loss8 = criterion2(out[:, dimention : dimention + 3], y7)
-                train_loss_list[5] += loss8.item()
-                loss = loss + opt["lambda1"] * (loss8)
+                loss10 = criterion2(out[:, dimention : dimention + 3], y9)
+                train_loss_list[5] += loss10.item()
+                loss = loss + opt["lambda1"] * (loss10)
                 dimention=dimention + 3
             test_number = test_number + len(y)
             out = out[:, :20]

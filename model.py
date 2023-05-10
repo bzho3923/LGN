@@ -48,7 +48,7 @@ class GNN_model(nn.Module):
         if self.opt["bfactor"]:
             output_dim += 1
         if self.opt["dihedral"]:
-            output_dim += 4
+            output_dim += 6
         if self.opt["coordinate"]:
             output_dim += 3
         return output_dim
